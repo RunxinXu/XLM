@@ -33,4 +33,4 @@ def pick_out_test():
                 g.write(line+'\n')
     print(count)
 
-pick_out_test()
+# pick_out_test()

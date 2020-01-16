@@ -119,11 +119,14 @@ def get_dump_path(params):
         subprocess.Popen("mkdir -p %s" % params.dump_path, shell=True).wait()
 
 
-def to_cuda(*args):
+def to_cuda(*args, gpu=None):
     """
     Move tensors to CUDA.
     """
-    return [None if x is None else x.cuda() for x in args]
+    if gpu is None:
+        return [None if x is None else x.cuda() for x in args]
+    else:
+        return [None if x is None else x.cuda(gpu) for x in args]
 
 
 def restore_segmentation(path):

@@ -15,6 +15,9 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
+import torch.backends.cudnn as cudnn
 from mymodule.mydataset import collate_fn, MyDataset
 
 from src.optim import get_optimizer
@@ -28,42 +31,51 @@ class MyTask:
     def __init__(self, model, params):
         self.model = model
         self.params = params
+        self.gpu = params.gpu
         self.mode = params.mode
+
         self.best_acc = 0
+        self.global_step = 0
 
     def run(self):
-        params = self.params
+        # put model in gpu
+        self.model.cuda(self.gpu)
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[self.gpu], find_unused_parameters=True) 
+        cudnn.benchmark = True
 
         # load data
         self.data = self.load_data()
-        self.dataloader = self.make_dataloader(self.data)
-
-        self.model.embedder.cuda()
-        self.model.proj.cuda()
-
-        #  只打分 不train/eval
+        self.sampler = self.make_sampler()
+        self.dataloader = self.make_dataloader()
+        
         if self.mode == 'test':
-            self.test()
-            return
+            self.run_test()
+        else:
+            self.run_train()
 
+    def run_train(self):
+        params = self.params
         # optimizers
-        self.optimizer_e = get_optimizer(list(self.model.embedder.get_parameters(params.finetune_layers)), params.optimizer_e)
-        self.optimizer_p = get_optimizer(self.model.proj.parameters(), params.optimizer_p)
+        self.optimizer_e = get_optimizer(list(self.model.module.get_parameters(params.finetune_layers)), params.optimizer_e)
+        self.optimizer_p = get_optimizer(self.model.module.proj.parameters(), params.optimizer_p)
+
+        # criterion 
+        self.criterion = nn.CrossEntropyLoss().cuda(self.gpu)
 
         # train and evaluate the model
         for epoch in range(params.n_epochs):
+            self.sampler['train'].set_epoch(epoch) # 因为train的需要shuffle, valid不用
 
             # update epoch
             self.epoch = epoch
 
             # training
-            logger.info("XLM - Training epoch %i ..." % epoch)
+            logger.info("GPU %i - XLM - Training epoch %i ..." % (self.gpu, epoch))
             self.train()
 
     def train(self):
         params = self.params
-        self.model.embedder.train()
-        self.model.proj.train()
+        self.model.train()
 
         # training variables
         losses = []
@@ -74,10 +86,8 @@ class MyTask:
         lang_id1 = params.lang2id[params.src_lang]
         lang_id2 = params.lang2id[params.trg_lang]
 
-        count = 0
-
-        for sent1, len1, sent2, len2, y in self.dataloader['train']:
-            count += 1
+        for sent1, len1, sent2, len2, y, _, _ in self.dataloader['train']:
+            self.global_step += 1
             sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
             sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
             x, lengths, positions, langs = concat_batches(
@@ -91,11 +101,11 @@ class MyTask:
             bs = len(len1)
 
             # cuda
-            x, y, lengths, positions, langs = to_cuda(x, y, lengths, positions, langs)
+            x, y, lengths, positions, langs = to_cuda(x, y, lengths, positions, langs, gpu=self.gpu)
 
             # loss
-            output = self.model.proj(self.model.embedder.get_embeddings(x, lengths, positions, langs))
-            loss = F.cross_entropy(output, y)
+            output = self.model(x, lengths, positions, langs)
+            loss = self.criterion(output, y)
 
             # backward / optimization
             self.optimizer_e.zero_grad()
@@ -103,37 +113,32 @@ class MyTask:
             loss.backward()
             self.optimizer_e.step()
             self.optimizer_p.step()
-
-            # update statistics
-            ns += bs
-            nw += lengths.sum().item()
             losses.append(loss.item())
 
             # log
-            if ns % (100 * bs) < bs:
-                logger.info("XLM - Epoch %i - Train iter %7i - %.1f words/s - Loss: %.4f" % (self.epoch, ns, nw / (time.time() - t), sum(losses) / len(losses)))
+            if self.global_step % self.params.report_interval == 0:
+                logger.info("GPU %i - Epoch %i - Global_step %i - Loss: %.4f" % (self.gpu, self.epoch, self.global_step, sum(losses) / len(losses)))
                 nw, t = 0, time.time()
                 losses = []
             
-            if count % params.eval_interval == 0:
-                # evaluation
-                logger.info("XLM - Evaluating ")
-                with torch.no_grad():
-                    scores = self.eval()
-                    if scores['acc'] > self.best_acc:
-                        self.best_acc = scores['acc']
-                        torch.save(self.model, os.path.join(params.save_model, 'best_acc_model.pkl'))
-                        with open(os.path.join(params.save_model, 'best_acc.note'), 'a') as f:
-                            f.write(str(self.best_acc)+'\n')
-                    with open(os.path.join(params.save_model, 'acc.note'), 'a') as f:
+            if self.global_step % params.eval_interval == 0:
+                if self.gpu == 0:
+                    logger.info("XLM - Evaluating")
+                    with torch.no_grad():
+                        scores = self.eval()
+                        if scores['acc'] > self.best_acc:
+                            self.best_acc = scores['acc']
+                            torch.save(self.model.module, os.path.join(params.save_model, 'best_acc_model.pkl'))
+                            with open(os.path.join(params.save_model, 'best_acc.note'), 'a') as f:
+                                f.write(str(self.best_acc)+'\n')
+                        with open(os.path.join(params.save_model, 'acc.note'), 'a') as f:
                             f.write(str(scores['acc'])+'\n')
-                self.model.embedder.train()
-                self.model.proj.train()
+                        logger.info("acc - %i " % scores['acc'])
+                    self.model.train()
 
     def eval(self):
         params = self.params
-        self.model.embedder.eval()
-        self.model.proj.eval()
+        self.model.eval()
 
         lang_id1 = params.lang2id[params.src_lang]
         lang_id2 = params.lang2id[params.trg_lang]
@@ -141,7 +146,7 @@ class MyTask:
         valid = 0
         total = 0
 
-        for sent1, len1, sent2, len2, y in self.dataloader['valid']:
+        for sent1, len1, sent2, len2, y, _, _ in tqdm(self.dataloader['valid']):
             sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
             sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
             x, lengths, positions, langs = concat_batches(
@@ -153,11 +158,10 @@ class MyTask:
             )
 
             # cuda
-            x, y, lengths, positions, langs = to_cuda(x, y, lengths, positions, langs)
+            x, y, lengths, positions, langs = to_cuda(x, y, lengths, positions, langs, gpu=self.gpu)
 
             # forward
-            a = self.model.embedder.get_embeddings(x, lengths, positions, langs)
-            output = self.model.proj(a)
+            output = self.model(x, lengths, positions, langs)
             predictions = output.data.max(1)[1]
 
             # update statistics
@@ -170,20 +174,22 @@ class MyTask:
         scores['acc'] = acc
         return scores
 
-    def test(self):
+    def run_test(self):
 
         params = self.params
-        self.model.embedder.eval()
-        self.model.proj.eval()
+        result_path = params.test_result_path + '_{}'.format(self.gpu)
+        self.model.eval()
 
         lang_id1 = params.lang2id[params.src_lang]
         lang_id2 = params.lang2id[params.trg_lang]
 
         proba_result = []
+        src_text_list = []
+        trg_text_list = []
 
         with torch.no_grad():
 
-            for sent1, len1, sent2, len2, _  in tqdm(self.dataloader['test']):
+            for sent1, len1, sent2, len2, _, src_text, trg_text in tqdm(self.dataloader['test']):
                 sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
                 sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
                 x, lengths, positions, langs = concat_batches(
@@ -195,44 +201,65 @@ class MyTask:
                 )
 
                 # cuda
-                x, lengths, positions, langs = to_cuda(x, lengths, positions, langs)
+                x, lengths, positions, langs = to_cuda(x, lengths, positions, langs, gpu=self.gpu)
 
                 # forward
-                a = self.model.embedder.get_embeddings(x, lengths, positions, langs)
-                output = self.model.proj(a)
+                output = self.model(x, lengths, positions, langs)
                 proba = F.softmax(output, 1)[:,1] 
 
                 proba_result.extend(proba.cpu().numpy())
+                src_text_list.extend(src_text)
+                trg_text_list.extend(trg_text)
+                assert len(proba_result) == len(src_text_list)
+                assert len(proba_result) == len(trg_text_list)
 
                 if len(proba_result) > params.flush_frequency:
-                    logger.info("write out score...")
-                    with open(params.test_result_path, 'a') as f:
-                        for score in proba_result:
-                            f.write(str(score)+os.linesep)
+                    logger.info(" GPU %i - write out score..." % self.gpu)
+                    with open(result_path, 'a') as f:
+                        for i in range(len(proba_result)):
+                            f.write('{}{}{}{}{}'.format(src_text_list[i], params.delimeter, 
+                                trg_text_list[i], params.delimeter, str(proba_result[i]))+os.linesep)
                         proba_result = []
+                        src_text_list = []
+                        trg_text_list = []
 
-            # 最后记得写出来剩下的
-            logger.info("write out score...")
-            with open(params.test_result_path, 'a') as f:
-                for score in proba_result:
-                    f.write(str(score)+os.linesep)
+            # write out the remainings
+            logger.info(" GPU %i - write out score..." % self.gpu)
+            with open(result_path, 'a') as f:
+                for i in range(len(proba_result)):
+                    f.write('{}{}{}{}{}'.format(src_text_list[i], params.delimeter, 
+                        trg_text_list[i], params.delimeter, str(proba_result[i]))+os.linesep)
                 proba_result = []
+                src_text_list = []
+                trg_text_list = []
 
     def load_data(self):
         dataset = {}
         if self.mode == 'train':
-            dataset['train'] = MyDataset(self.params, self.model.embedder.dico, 'train')
-            dataset['valid'] = MyDataset(self.params, self.model.embedder.dico, 'valid')
+            dataset['train'] = MyDataset(self.params, self.model.module.dico, 'train')
+            dataset['valid'] = MyDataset(self.params, self.model.module.dico, 'valid')
         else:
-            dataset['test'] = MyDataset(self.params, self.model.embedder.dico, 'test')
+            dataset['test'] = MyDataset(self.params, self.model.module.dico, 'test')
         return dataset
     
-    def make_dataloader(self, data):
+    def make_dataloader(self):
         data_loader = {}
         if self.mode == 'train':
-            data_loader['train'] = DataLoader(data['train'], batch_size=self.params.batch_size, shuffle=True, collate_fn=collate_fn)
-            data_loader['valid'] = DataLoader(data['valid'], batch_size=self.params.batch_size, shuffle=False, collate_fn=collate_fn)
+            data_loader['train'] = DataLoader(self.data['train'], batch_size=self.params.batch_size,
+                                               sampler=self.sampler['train'], collate_fn=collate_fn)
+            data_loader['valid'] = DataLoader(self.data['valid'], batch_size=self.params.batch_size,
+                                               shuffle=False, collate_fn=collate_fn)
         else:
-            data_loader['test'] = DataLoader(data['test'], batch_size=self.params.batch_size, shuffle=False, collate_fn=collate_fn)
+            data_loader['test'] = DataLoader(self.data['test'], batch_size=self.params.batch_size,
+                                               sampler=self.sampler['test'], collate_fn=collate_fn)
         return data_loader
 
+    def make_sampler(self):
+        sampler = {}
+        if self.mode == 'train':
+            sampler['train'] = DistributedSampler(self.data['train'], shuffle=True)
+            # valid采用single gpu
+            # sampler['valid'] = DistributedSampler(self.data['valid'], shuffle=False) 
+        else:
+            sampler['test'] = DistributedSampler(self.data['test'], shuffle=False)
+        return sampler

@@ -83,16 +83,13 @@ class MyTask:
         nw = 0  # number of words
         t = time.time()
 
-        lang_id1 = params.lang2id[params.src_lang]
-        lang_id2 = params.lang2id[params.trg_lang]
-
-        for sent1, len1, sent2, len2, y, _, _ in self.dataloader['train']:
+        for sent1, len1, sent2, len2, y, _, _, lang1, lang2 in self.dataloader['train']:
             self.global_step += 1
             sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
             sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
             x, lengths, positions, langs = concat_batches(
-                sent1, len1, lang_id1,
-                sent2, len2, lang_id2,
+                sent1, len1, lang1,
+                sent2, len2, lang2,
                 params.pad_index,
                 params.eos_index,
                 reset_positions=True
@@ -146,12 +143,12 @@ class MyTask:
         valid = 0
         total = 0
 
-        for sent1, len1, sent2, len2, y, _, _ in tqdm(self.dataloader['valid']):
+        for sent1, len1, sent2, len2, y, _, _, lang1, lang2 in tqdm(self.dataloader['valid']):
             sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
             sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
             x, lengths, positions, langs = concat_batches(
-                sent1, len1, lang_id1,
-                sent2, len2, lang_id2,
+                sent1, len1, lang1,
+                sent2, len2, lang2,
                 params.pad_index,
                 params.eos_index,
                 reset_positions=True
@@ -189,12 +186,12 @@ class MyTask:
 
         with torch.no_grad():
 
-            for sent1, len1, sent2, len2, _, src_text, trg_text in tqdm(self.dataloader['test']):
+            for sent1, len1, sent2, len2, _, src_text, trg_text, lang1, lang2 in tqdm(self.dataloader['test']):
                 sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
                 sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
                 x, lengths, positions, langs = concat_batches(
-                    sent1, len1, lang_id1,
-                    sent2, len2, lang_id2,
+                    sent1, len1, lang1,
+                    sent2, len2, lang2,
                     params.pad_index,
                     params.eos_index,
                     reset_positions=True

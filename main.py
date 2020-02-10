@@ -34,10 +34,10 @@ parser.add_argument("--model_path", type=str, default="",
 parser.add_argument("--test_result_path", type=str, default="",
                     help="test_result_path")
        
-parser.add_argument("--src_lang", type=str, default="",
-                    help="src lang")
-parser.add_argument("--trg_lang", type=str, default="",
-                    help="trg lang")
+# parser.add_argument("--src_lang", type=str, default="",
+#                     help="src lang")
+# parser.add_argument("--trg_lang", type=str, default="",
+#                     help="trg lang")
             
 # data
 parser.add_argument("--data_path", type=str, default="",

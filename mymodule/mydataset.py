@@ -12,8 +12,9 @@ class MyDataset(Dataset):
         self.dico = dico
 
         data_path = params.data_path
-        src_file = os.path.join(data_path, '{}.bpe.{}'.format(params.src_lang, mode))
-        trg_file = os.path.join(data_path, '{}.bpe.{}'.format(params.trg_lang, mode))
+        src_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
+        trg_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
+        lang_file = os.path.join(data_path, 'multi.lang.{}'.format(mode))
 
         # optional
         label_file = None
@@ -21,13 +22,14 @@ class MyDataset(Dataset):
         trg_raw_text_file = None
 
         if mode in ['train', 'valid']:
-            label_file = os.path.join(data_path, '{}2{}_label.{}'.format(params.src_lang, params.trg_lang, mode))
+            label_file = os.path.join(data_path, 'multi.label.{}'.format(mode))
         else:
-            src_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.src_lang, mode))
-            trg_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.trg_lang, mode))
+            src_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
+            trg_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
 
         src = open(src_file, 'r').read().splitlines()
         trg = open(trg_file, 'r').read().splitlines()
+        langs = open(lang_file, 'r').read().splitlines()
         
         label = None
         src_raw_text = None
@@ -47,6 +49,8 @@ class MyDataset(Dataset):
 
             src_words = torch.tensor(src_words)
             trg_words = torch.tensor(trg_words)
+            
+            lang1, lang2 = langs[i].split()
 
             if mode in ['train', 'valid']:
                 lab = [int(label[i].strip())]
@@ -66,6 +70,8 @@ class MyDataset(Dataset):
                 'label': lab,
                 'src_text': src_text,
                 'trg_text': trg_text,
+                'lang1': self.params.lang2id[lang1],
+                'lang2': self.params.lang2id[lang2],
             })
 
     def __len__(self):
@@ -95,7 +101,10 @@ def collate_fn(batch):
     src_texts = [sample['src_text'] for sample in batch]
     trg_texts = [sample['trg_text'] for sample in batch]
 
-    return src_words, src_len, trg_words, trg_len, labels, src_texts, trg_texts
+    lang1 = torch.tensor([sample['lang1'] for sample in batch]).long()
+    lang2 = torch.tensor([sample['lang2'] for sample in batch]).long()
+
+    return src_words, src_len, trg_words, trg_len, labels, src_texts, trg_texts, lang1, lang2
 
 
 if __name__ == '__main__':

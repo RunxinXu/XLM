@@ -14,11 +14,11 @@ class MyDataset(Dataset):
         data_path = params.data_path
         
         if params.suffix == '':
-            src_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
-            trg_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
+            src_file = os.path.join(data_path, 'src.bpe.{}'.format(mode))
+            trg_file = os.path.join(data_path, 'trg.bpe.{}'.format(mode))
         else:
-            src_file = os.path.join(data_path, 'multi.bpe.{}.{}'.format(mode, params.suffix))
-            trg_file = os.path.join(data_path, 'multi.bpe.{}.{}'.format(mode, params.suffix))
+            src_file = os.path.join(data_path, 'src.bpe.{}.{}'.format(mode, params.suffix))
+            trg_file = os.path.join(data_path, 'trg.bpe.{}.{}'.format(mode, params.suffix))
 
         # optional
         label_file = None

@@ -217,7 +217,7 @@ def concat_batches(x1, len1, lang1_id, x2, len2, lang2_id, pad_idx, eos_idx, res
     """
     Concat batches with different languages.
     """
-    assert reset_positions is False or lang1_id != lang2_id
+    # assert reset_positions is False or lang1_id != lang2_id
     lengths = len1 + len2
     if not reset_positions:
         lengths -= 1
@@ -227,8 +227,8 @@ def concat_batches(x1, len1, lang1_id, x2, len2, lang2_id, pad_idx, eos_idx, res
     x[:len1.max().item()].copy_(x1)
     positions = torch.arange(slen)[:, None].repeat(1, bs).to(x1.device)
     # langs = x1.new(slen, bs).fill_(lang1_id)
-    langs = x1.new(slen, bs)[:] = lang1_id
-
+    langs = x1.new(slen, bs)
+    langs[:] = lang1_id
     for i in range(bs):
         l1 = len1[i] if reset_positions else len1[i] - 1
         x[l1:l1 + len2[i], i].copy_(x2[:len2[i], i])

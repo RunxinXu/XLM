@@ -21,7 +21,7 @@ import torch.backends.cudnn as cudnn
 from mymodule.mydataset import collate_fn, MyDataset
 
 from src.optim import get_optimizer
-from src.utils import concat_batches, truncate, to_cuda
+from src.utils import concat_batches, concat_batches_test, truncate, to_cuda
 from tqdm import tqdm
 
 logger = getLogger()
@@ -184,12 +184,15 @@ class MyTask:
         src_text_list = []
         trg_text_list = []
 
+        lang1 = self.params.lang2id[self.params.src_lang]
+        lang2 = self.params.lang2id[self.params.trg_lang]
+
         with torch.no_grad():
 
-            for sent1, len1, sent2, len2, _, src_text, trg_text, lang1, lang2 in tqdm(self.dataloader['test']):
+            for sent1, len1, sent2, len2, _, src_text, trg_text, _, _ in tqdm(self.dataloader['test']):
                 sent1, len1 = truncate(sent1, len1, params.max_len, params.eos_index)
                 sent2, len2 = truncate(sent2, len2, params.max_len, params.eos_index)
-                x, lengths, positions, langs = concat_batches(
+                x, lengths, positions, langs = concat_batches_test(
                     sent1, len1, lang1,
                     sent2, len2, lang2,
                     params.pad_index,

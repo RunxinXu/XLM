@@ -14,29 +14,31 @@ class MyDataset(Dataset):
         data_path = params.data_path
         src_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
         trg_file = os.path.join(data_path, 'multi.bpe.{}'.format(mode))
-        lang_file = os.path.join(data_path, 'multi.lang.{}'.format(mode))
 
         # optional
         label_file = None
+        lang_file = None
         src_raw_text_file = None
         trg_raw_text_file = None
 
         if mode in ['train', 'valid']:
             label_file = os.path.join(data_path, 'multi.label.{}'.format(mode))
+            lang_file = os.path.join(data_path, 'multi.lang.{}'.format(mode))
         else:
             src_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
             trg_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
 
         src = open(src_file, 'r').read().splitlines()
         trg = open(trg_file, 'r').read().splitlines()
-        langs = open(lang_file, 'r').read().splitlines()
         
         label = None
+        langs = None
         src_raw_text = None
         trg_raw_text = None
 
         if mode in ['train', 'valid']:
             label = open(label_file, 'r').read().splitlines()
+            langs = open(lang_file, 'r').read().splitlines()
         else:
             src_raw_text = open(src_raw_text_file, 'r').read().splitlines()
             trg_raw_text = open(trg_raw_text_file, 'r').read().splitlines()
@@ -49,16 +51,19 @@ class MyDataset(Dataset):
 
             src_words = torch.tensor(src_words)
             trg_words = torch.tensor(trg_words)
-            
-            lang1, lang2 = langs[i].split()
 
             if mode in ['train', 'valid']:
                 lab = [int(label[i].strip())]
                 lab = torch.tensor(lab)
+                lang1, lang2 = langs[i].split()
+                lang1 = self.params.lang2id[lang1]
+                lang2 = self.params.lang2id[lang2]
                 src_text = None
                 trg_text = None
             else:
                 lab = None
+                lang1 = None
+                lang2 = None
                 src_text = src_raw_text[i]
                 trg_text = trg_raw_text[i]
 
@@ -70,8 +75,8 @@ class MyDataset(Dataset):
                 'label': lab,
                 'src_text': src_text,
                 'trg_text': trg_text,
-                'lang1': self.params.lang2id[lang1],
-                'lang2': self.params.lang2id[lang2],
+                'lang1': lang1,
+                'lang2': lang2,
             })
 
     def __len__(self):

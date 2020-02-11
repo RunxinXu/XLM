@@ -34,10 +34,10 @@ parser.add_argument("--model_path", type=str, default="",
 parser.add_argument("--test_result_path", type=str, default="",
                     help="test_result_path")
        
-# parser.add_argument("--src_lang", type=str, default="",
-#                     help="src lang")
-# parser.add_argument("--trg_lang", type=str, default="",
-#                     help="trg lang")
+parser.add_argument("--src_lang", type=str, default="",
+                    help="src lang")
+parser.add_argument("--trg_lang", type=str, default="",
+                    help="trg lang")
             
 # data
 parser.add_argument("--data_path", type=str, default="",
@@ -127,10 +127,14 @@ def check_params(params):
     assert params.mode in ['train', 'test']
     if params.mode == 'train':
         assert params.save_model != ""
+        assert params.src_lang == ""
+        assert params.trg_lang == ""
         if not os.path.exists(params.save_model):
             os.makedirs(params.save_model)
     else:
         assert params.test_result_path != ""
+        assert params.src_lang != ""
+        assert params.trg_lang != ""
         for i in range(torch.cuda.device_count()):
             assert not os.path.isfile(params.test_result_path + '_{}'.format(i))
 

@@ -240,6 +240,31 @@ def concat_batches(x1, len1, lang1_id, x2, len2, lang2_id, pad_idx, eos_idx, res
 
     return x, lengths, positions, langs
 
+def concat_batches_test(x1, len1, lang1_id, x2, len2, lang2_id, pad_idx, eos_idx, reset_positions):
+    """
+    Concat batches with different languages.
+    """
+    assert reset_positions is False or lang1_id != lang2_id
+    lengths = len1 + len2
+    if not reset_positions:
+        lengths -= 1
+    slen, bs = lengths.max().item(), lengths.size(0)
+
+    x = x1.new(slen, bs).fill_(pad_idx)
+    x[:len1.max().item()].copy_(x1)
+    positions = torch.arange(slen)[:, None].repeat(1, bs).to(x1.device)
+    langs = x1.new(slen, bs).fill_(lang1_id)
+
+    for i in range(bs):
+        l1 = len1[i] if reset_positions else len1[i] - 1
+        x[l1:l1 + len2[i], i].copy_(x2[:len2[i], i])
+        if reset_positions:
+            positions[l1:, i] -= len1[i]
+        langs[l1:, i] = lang2_id
+
+    assert (x == eos_idx).long().sum().item() == (4 if reset_positions else 3) * bs
+
+    return x, lengths, positions, langs
 
 def truncate(x, lengths, max_len, eos_index):
     """

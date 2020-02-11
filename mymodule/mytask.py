@@ -137,8 +137,8 @@ class MyTask:
         params = self.params
         self.model.eval()
 
-        lang_id1 = params.lang2id[params.src_lang]
-        lang_id2 = params.lang2id[params.trg_lang]
+        # lang_id1 = params.lang2id[params.src_lang]
+        # lang_id2 = params.lang2id[params.trg_lang]
 
         valid = 0
         total = 0
@@ -177,15 +177,12 @@ class MyTask:
         result_path = params.test_result_path + '_{}'.format(self.gpu)
         self.model.eval()
 
-        lang_id1 = params.lang2id[params.src_lang]
-        lang_id2 = params.lang2id[params.trg_lang]
+        lang1 = params.lang2id[params.src_lang]
+        lang2 = params.lang2id[params.trg_lang]
 
         proba_result = []
         src_text_list = []
         trg_text_list = []
-
-        lang1 = self.params.lang2id[self.params.src_lang]
-        lang2 = self.params.lang2id[self.params.trg_lang]
 
         with torch.no_grad():
 

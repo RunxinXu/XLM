@@ -38,6 +38,8 @@ parser.add_argument("--src_lang", type=str, default="",
                     help="src lang")
 parser.add_argument("--trg_lang", type=str, default="",
                     help="trg lang")
+parser.add_argument("--suffix", type=str, default="",
+                    help="suffix")
             
 # data
 parser.add_argument("--data_path", type=str, default="",

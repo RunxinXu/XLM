@@ -12,8 +12,12 @@ class MyDataset(Dataset):
         self.dico = dico
 
         data_path = params.data_path
-        src_file = os.path.join(data_path, '{}.bpe.{}'.format(params.src_lang, mode))
-        trg_file = os.path.join(data_path, '{}.bpe.{}'.format(params.trg_lang, mode))
+        if params.suffix == '':
+            src_file = os.path.join(data_path, '{}.bpe.{}'.format(params.src_lang, mode))
+            trg_file = os.path.join(data_path, '{}.bpe.{}'.format(params.trg_lang, mode))
+        else:
+            src_file = os.path.join(data_path, '{}.bpe.{}.{}'.format(params.src_lang, mode, params.suffix))
+            trg_file = os.path.join(data_path, '{}.bpe.{}.{}'.format(params.trg_lang, mode, params.suffix))
 
         # optional
         label_file = None
@@ -21,10 +25,17 @@ class MyDataset(Dataset):
         trg_raw_text_file = None
 
         if mode in ['train', 'valid']:
-            label_file = os.path.join(data_path, '{}2{}_label.{}'.format(params.src_lang, params.trg_lang, mode))
+            if params.suffix == '':
+                label_file = os.path.join(data_path, '{}2{}_label.{}'.format(params.src_lang, params.trg_lang, mode))
+            else:
+                label_file = os.path.join(data_path, '{}2{}_label.{}.{}'.format(params.src_lang, params.trg_lang, mode, params.suffix))
         else:
-            src_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.src_lang, mode))
-            trg_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.trg_lang, mode))
+            if params.suffix == '':
+                src_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.src_lang, mode))
+                trg_raw_text_file = os.path.join(data_path, '{}.{}'.format(params.trg_lang, mode))
+            else:
+                src_raw_text_file = os.path.join(data_path, '{}.{}.{}'.format(params.src_lang, mode, params.suffix))
+                trg_raw_text_file = os.path.join(data_path, '{}.{}.{}'.format(params.trg_lang, mode, params.suffix))
 
         src = open(src_file, 'r').read().splitlines()
         trg = open(trg_file, 'r').read().splitlines()

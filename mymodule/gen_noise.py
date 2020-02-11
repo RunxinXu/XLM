@@ -25,8 +25,8 @@ def load_clean_data(file_src, file_tgt):
 
 def gen_misaligned(clean_data):
     misaligned = []
-    count = len(clean_data) / 2
-
+    count = len(clean_data) // 2
+    print(count)
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                    shuffle(clean_data["tgt"]))):
         misaligned.append({
@@ -36,6 +36,7 @@ def gen_misaligned(clean_data):
         })
         count -= 1
         if count == 0:
+            'break'
             break
     misaligned = shuffle(misaligned)
     return pd.DataFrame(misaligned)
@@ -43,7 +44,7 @@ def gen_misaligned(clean_data):
 
 def _gen_short_segments(clean_data, n_tokens=[2,3]):
     short_segments = []
-    count = len(clean_data) / 5
+    count = len(clean_data) // 5
 
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                     shuffle(clean_data["tgt"]))):
@@ -67,7 +68,7 @@ def _gen_short_segments(clean_data, n_tokens=[2,3]):
 
 def gen_misordered(clean_data):
     misordered = []
-    count = len(clean_data) / 2
+    count = len(clean_data) // 2
 
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                    shuffle(clean_data["tgt"]))):
@@ -90,7 +91,7 @@ def gen_misordered(clean_data):
 
 def gen_wrong_language(clean_data):
     wrong_language = []
-    count = len(clean_data) / 2
+    count = len(clean_data) // 2
 
     for line_s, line_t \
             in tqdm(zip(
@@ -116,11 +117,11 @@ def gen_wrong_language(clean_data):
     wrong_language = shuffle(wrong_language)
     return pd.DataFrame(wrong_language)
 
-clean_data_src = 'en2vi/en.pos'
-clean_data_trg = 'en2vi/vi.pos'
-output_src = 'en2vi/en.train'
-output_trg = 'en2vi/vi.train'
-output_label = 'en2vi/en2vi_label.train'
+clean_data_src = 'en2de/raw_data/en.pos'
+clean_data_trg = 'en2de/raw_data/de.pos'
+output_src = 'en2de/data/en.train'
+output_trg = 'en2de/data/de.train'
+output_label = 'en2de/data/en2de_label.train'
 
 clean_data = load_clean_data(clean_data_src, clean_data_trg)
 misaligned = gen_misaligned(clean_data)

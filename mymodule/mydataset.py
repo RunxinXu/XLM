@@ -35,11 +35,11 @@ class MyDataset(Dataset):
                 lang_file = os.path.join(data_path, 'multi.lang.{}.{}'.format(mode, params.suffix))
         else:
             if params.suffix == '':
-                src_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
-                trg_raw_text_file = os.path.join(data_path, 'multi.{}'.format(mode))
+                src_raw_text_file = os.path.join(data_path, 'src.{}'.format(mode))
+                trg_raw_text_file = os.path.join(data_path, 'trg.{}'.format(mode))
             else:
-                src_raw_text_file = os.path.join(data_path, 'multi.{}.{}'.format(mode, params.suffix))
-                trg_raw_text_file = os.path.join(data_path, 'multi.{}.{}'.format(mode, params.suffix))
+                src_raw_text_file = os.path.join(data_path, 'src.{}.{}'.format(mode, params.suffix))
+                trg_raw_text_file = os.path.join(data_path, 'trg.{}.{}'.format(mode, params.suffix))
 
         src = open(src_file, 'r').read().splitlines()
         trg = open(trg_file, 'r').read().splitlines()
@@ -119,8 +119,12 @@ def collate_fn(batch):
     src_texts = [sample['src_text'] for sample in batch]
     trg_texts = [sample['trg_text'] for sample in batch]
 
-    lang1 = torch.tensor([sample['lang1'] for sample in batch]).long()
-    lang2 = torch.tensor([sample['lang2'] for sample in batch]).long()
+    if batch[0]['lang1'] is not None:
+        lang1 = torch.tensor([sample['lang1'] for sample in batch]).long()
+        lang2 = torch.tensor([sample['lang2'] for sample in batch]).long()
+    else:
+        lang1 = None
+        lang2 = None
 
     return src_words, src_len, trg_words, trg_len, labels, src_texts, trg_texts, lang1, lang2
 

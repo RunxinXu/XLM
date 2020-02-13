@@ -246,12 +246,14 @@ class MyTask:
         data_loader = {}
         if self.mode == 'train':
             data_loader['train'] = DataLoader(self.data['train'], batch_size=self.params.batch_size,
-                                               sampler=self.sampler['train'], collate_fn=collate_fn)
+                                               sampler=self.sampler['train'], collate_fn=collate_fn,
+                                               pin_memory=True)
             data_loader['valid'] = DataLoader(self.data['valid'], batch_size=self.params.batch_size,
-                                               shuffle=False, collate_fn=collate_fn)
+                                               shuffle=False, collate_fn=collate_fn, pin_memory=True)
         else:
             data_loader['test'] = DataLoader(self.data['test'], batch_size=self.params.batch_size,
-                                               sampler=self.sampler['test'], collate_fn=collate_fn)
+                                               sampler=self.sampler['test'], collate_fn=collate_fn,
+                                               pin_memory=True)
         return data_loader
 
     def make_sampler(self):

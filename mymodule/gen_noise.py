@@ -117,6 +117,8 @@ def gen_wrong_language(clean_data):
     wrong_language = shuffle(wrong_language)
     return pd.DataFrame(wrong_language)
 
+# 需要先分词好！！！！
+
 clean_data_src = 'en2de/raw_data/en.pos'
 clean_data_trg = 'en2de/raw_data/de.pos'
 output_src = 'en2de/data/en.train'

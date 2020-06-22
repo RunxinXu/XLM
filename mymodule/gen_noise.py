@@ -25,7 +25,7 @@ def load_clean_data(file_src, file_tgt):
 
 def gen_misaligned(clean_data):
     misaligned = []
-    count = len(clean_data) // 2
+    count = len(clean_data)
     print(count)
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                    shuffle(clean_data["tgt"]))):
@@ -44,7 +44,7 @@ def gen_misaligned(clean_data):
 
 def _gen_short_segments(clean_data, n_tokens=[2,3]):
     short_segments = []
-    count = len(clean_data) // 5
+    count = len(clean_data) // 3
 
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                     shuffle(clean_data["tgt"]))):
@@ -68,7 +68,7 @@ def _gen_short_segments(clean_data, n_tokens=[2,3]):
 
 def gen_misordered(clean_data):
     misordered = []
-    count = len(clean_data) // 2
+    count = len(clean_data)
 
     for line_s, line_t in tqdm(zip(shuffle(clean_data["src"]),
                                    shuffle(clean_data["tgt"]))):
@@ -91,7 +91,7 @@ def gen_misordered(clean_data):
 
 def gen_wrong_language(clean_data):
     wrong_language = []
-    count = len(clean_data) // 2
+    count = len(clean_data)
 
     for line_s, line_t \
             in tqdm(zip(
@@ -119,11 +119,13 @@ def gen_wrong_language(clean_data):
 
 # 需要先分词好！！！！
 
-clean_data_src = 'en2de/raw_data/en.pos'
-clean_data_trg = 'en2de/raw_data/de.pos'
-output_src = 'en2de/data/en.train'
-output_trg = 'en2de/data/de.train'
-output_label = 'en2de/data/en2de_label.train'
+base_path = '/mnt/cephfs_new_wj/bytetrans/runxindidi/wmt_filter/km/parallel'
+clean_data_src = os.path.join(base_path, 'filter.en-km.en.tok')
+clean_data_trg = os.path.join(base_path, 'filter.en-km.km.tok')
+path = '/mnt/cephfs_new_wj/bytetrans/runxindidi/wmt_filter/XLM/mymodule/en-km/second/data'
+output_src = os.path.join(path, 'all.en.tok')
+output_trg = os.path.join(path, 'all.km.tok')
+output_label = os.path.join(path, 'all.label')
 
 clean_data = load_clean_data(clean_data_src, clean_data_trg)
 misaligned = gen_misaligned(clean_data)

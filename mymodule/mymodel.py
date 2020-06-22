@@ -63,7 +63,11 @@ class MyModel(nn.Module):
         self.n_layers = model.n_layers
         self.out_dim = model.dim
         self.n_words = model.n_words
+        self.use_cnn = params.use_cnn
 
+        if self.use_cnn:
+            self.cnn = nn.Conv1d(self.out_dim, self.out_dim, kernel_size=3, padding=1)
+        
         self.proj = nn.Sequential(*[
                     nn.Dropout(params.dropout),
                     nn.Linear(self.out_dim, params.category)
@@ -131,8 +135,11 @@ class MyModel(nn.Module):
         assert tensor.size() == (slen, bs, self.out_dim)
 
         # single-vector sentence representation (first column of last layer)
-        return tensor[0]
+        return tensor[0] if not self.use_cnn else tensor.permute(1,2,0)
     
     def forward(self, x, lengths, positions=None, langs=None):
-        prediction = self.proj(self.get_embeddings(x, lengths, positions, langs))
+        embeddings = self.get_embeddings(x, lengths, positions, langs)
+        if self.use_cnn:
+            embeddings = torch.max(self.cnn(embeddings), dim=-1)[0]
+        prediction = self.proj(embeddings)
         return prediction

@@ -147,6 +147,9 @@ def load_mono_data(params, data):
                 if splt == 'train':
                     dataset.remove_empty_sentences()
                     dataset.remove_long_sentences(params.max_len)
+                else:
+                    dataset.remove_empty_sentences()
+                    dataset.remove_long_sentences(params.max_len)
 
                 # if there are several processes on the same machine, we can split the dataset
                 if splt == 'train' and params.n_gpu_per_node > 1 and params.split_data:
@@ -205,6 +208,9 @@ def load_para_data(params, data):
 
             # remove empty and too long sentences
             if splt == 'train':
+                dataset.remove_empty_sentences()
+                dataset.remove_long_sentences(params.max_len)
+            else:
                 dataset.remove_empty_sentences()
                 dataset.remove_long_sentences(params.max_len)
 

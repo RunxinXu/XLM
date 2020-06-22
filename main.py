@@ -66,6 +66,7 @@ parser.add_argument("--optimizer_p", type=str, default="adam,lr=0.0001",
                     help="Projection (classifier) optimizer")
 parser.add_argument("--n_epochs", type=int, default=100,
                     help="Maximum number of epochs")
+parser.add_argument('--use_cnn', action='store_true')
 
 # evaluate  每过eval_interval * batch_size 个数据 
 parser.add_argument("--eval_interval", type=int, default=10000,
@@ -98,7 +99,7 @@ def main_worker(gpu, params):
         my_model = MyModel.reload(params.model_path, params)
     else:
         my_model = torch.load(params.model_path)
-
+    
     # reload langs from pretrained model
     params.n_langs = my_model.pretrain_params['n_langs']
     params.id2lang = my_model.pretrain_params['id2lang']
@@ -139,3 +140,6 @@ def check_params(params):
 
 if __name__ == '__main__':
     main()
+    # params = parser.parse_args()
+    # my_model = MyModel.reload('mymodule/best_checkpoint.pth', params)
+    # print(my_model)

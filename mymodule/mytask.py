@@ -128,7 +128,8 @@ class MyTask:
                         scores = self.eval()
                         if scores['acc'] > self.best_acc:
                             self.best_acc = scores['acc']
-                            torch.save(self.model.module, os.path.join(params.save_model, 'best_acc_model.pkl'))
+                            bacc = str(self.best_acc).replace('.', '_')
+                            torch.save(self.model.module, os.path.join(params.save_model, 'best_acc_model_{}.pkl'.format(bacc)))
                             with open(os.path.join(params.save_model, 'best_acc.note'), 'a') as f:
                                 f.write(str(self.best_acc)+'\n')
                         with open(os.path.join(params.save_model, 'acc.note'), 'a') as f:
